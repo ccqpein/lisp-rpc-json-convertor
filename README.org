@@ -1,0 +1,118 @@
+#+TITLE: Lisp-RPC JSON Convertor
+#+AUTHOR: ccQpein
+
+=lisp-rpc-json-convertor= is a CLI tool and Rust library for converting Lisp-RPC data structures into JSON.
+
+* Features
+
+- Convert named Lisp-RPC structures into tagged JSON objects.
+- Convert anonymous maps into standard JSON objects.
+- Convert Lisp-RPC lists into JSON arrays.
+- Convert scalar types (strings, numbers, booleans, symbols).
+- Support for single data records, multi-record files, and stdin streams.
+- CLI application and Rust library API with extension traits.
+
+* Data Format Mapping
+
+| Lisp-RPC                                      | JSON                                                                    |
+|-----------------------------------------------+-------------------------------------------------------------------------|
+| =(book-info :title "1984" :id 1 :available 'T)= | ={"data_name": "book-info", "title": "1984", "id": 1, "available": true}= |
+| ='(:first "John" :last "Doe")=                  | ={"first": "John", "last": "Doe"}=                                        |
+| ='("a" "b" "c")=                                | =["a", "b", "c"]=                                                         |
+| ="hello"= / =42= / =3.14=                           | ="hello"= / =42= / =3.14=                                                     |
+| ='T= / ='NIL=                                     | =true= / =null=                                                             |
+
+* CLI Usage
+
+** Installation / Build
+
+#+begin_src bash
+cargo build --release
+#+end_src
+
+** Options
+
+| Flag                  | Description                                   |
+|-----------------------+-----------------------------------------------|
+| =-d, --data <DATA>=     | Pass raw Lisp-RPC string directly             |
+| =-f, --file <FILE>=     | Read from a file (or =-= for stdin)             |
+| =-o, --output <OUTPUT>= | Write output to a file (defaults to stdout)   |
+| =-k, --key <KEY>=       | Custom tag key name (defaults to ="data_name"=) |
+| =-p, --pretty=          | Pretty-print JSON with indentation            |
+| =[INPUT]=               | Positional raw string or file path            |
+
+** Examples
+
+*** Convert raw string
+#+begin_src shell
+  lisp-rpc-json-convertor -d '(book :title "Dune" :year 1965)' --pretty
+#+end_src
+
+*** Convert file to output file
+#+begin_src shell
+  lisp-rpc-json-convertor -f input.lisp -o output.json --pretty
+#+end_src
+
+*** Custom tag key
+#+begin_src shell
+  lisp-rpc-json-convertor -d '(user :name "Alice")' -k "_type"
+  # {"_type":"user","name":"Alice"}
+#+end_src
+
+*** Pipe via stdin
+#+begin_src shell
+  echo '(get-book :title "Dune")' | lisp-rpc-json-convertor --pretty
+#+end_src
+
+* Library Usage
+
+Add to your =Cargo.toml=:
+
+#+begin_src toml
+  [dependencies]
+  lisp-rpc-json-convertor = "0"
+#+end_src
+
+** Quick Conversion (1-Liner)
+
+#+begin_src rust
+  use lisp_rpc_json_convertor::to_json_from_str;
+
+  fn main() -> anyhow::Result<()> {
+      let json_val = to_json_from_str(r#"(book :title "1984" :id 1)"#)?;
+      println!("{}", json_val);
+      Ok(())
+  }
+#+end_src
+
+** Extension Trait
+
+#+begin_src rust
+  use lisp_rpc_json_convertor::LispRpcJsonExt;
+  use lisp_rpc_rust_raw_data::Data;
+
+  fn main() -> anyhow::Result<()> {
+      let data = Data::from_root_str(r#"(server :host "localhost" :port 8080)"#, None)?;
+      
+      // Direct .to_json() method on Data
+      let val = data.to_json()?;
+      println!("{}", val);
+      Ok(())
+  }
+#+end_src
+
+** Custom Convertor Configuration
+
+#+begin_src rust
+  use lisp_rpc_json_convertor::Convertor;
+  use lisp_rpc_rust_raw_data::Data;
+
+  fn main() -> anyhow::Result<()> {
+      let convertor = Convertor::new().data_name_key("_type");
+      let data = Data::from_root_str(r#"(user-info :name "Alice")"#, None)?;
+      
+      let json_val = convertor.to_json(&data)?;
+      println!("{}", json_val);
+      Ok(())
+  }
+#+end_src
