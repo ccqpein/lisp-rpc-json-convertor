@@ -27,7 +27,7 @@
 ** Installation / Build
 
 #+begin_src bash
-cargo build --release
+  cargo install lisp-rpc-json-convertor
 #+end_src
 
 ** Options
