@@ -201,3 +201,19 @@ Add to your =Cargo.toml=:
       Ok(())
   }
 #+end_src
+
+* Agent Skill
+
+A ready-to-use Agent Skill is provided for AI coding assistants (such as Antigravity) in [[file:SKILL.md][SKILL.md]].
+
+To equip your agent with this skill in a project:
+#+begin_src bash
+  mkdir -p /path/to/project/.agents/skills/lisp-rpc-json-convertor
+  cp SKILL.md /path/to/project/.agents/skills/lisp-rpc-json-convertor/
+#+end_src
+
+Or install it globally for Antigravity on your machine:
+#+begin_src bash
+  mkdir -p ~/.gemini/antigravity-cli/skills/lisp-rpc-json-convertor
+  cp SKILL.md ~/.gemini/antigravity-cli/skills/lisp-rpc-json-convertor/
+#+end_src
