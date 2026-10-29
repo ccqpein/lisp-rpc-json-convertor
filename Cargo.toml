@@ -1,13 +1,12 @@
 [package]
 name = "lisp-rpc-json-convertor"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 description = "A CLI tool and Rust library to convert Lisp-RPC data structures into JSON"
 license = "MIT"
 repository = "https://github.com/ccqpein/lisp-rpc-json-convertor"
-homepage = "https://github.com/ccqpein/lisp-rpc-json-convertor"
 documentation = "https://docs.rs/lisp-rpc-json-convertor"
-readme = "README.org"
+readme = "README.md"
 keywords = ["lisp", "rpc", "json", "convertor", "s-expression"]
 categories = ["command-line-utilities", "encoding", "parsing"]
 

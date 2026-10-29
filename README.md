@@ -1,0 +1,227 @@
+# Lisp-RPC JSON / YAML Convertor
+
+`lisp-rpc-json-convertor` is a CLI tool and Rust library for converting between Lisp-RPC data structures and JSON / YAML bidirectionally.
+
+## Features
+
+- Convert named Lisp-RPC structures into tagged JSON/YAML objects and vice versa.
+- Convert anonymous maps into standard JSON/YAML mappings and vice versa.
+- Convert Lisp-RPC lists into JSON/YAML arrays/sequences and vice versa.
+- Convert scalar types (strings, numbers, booleans, null/nil).
+- Modularized design with dedicated `json` and `yaml` modules.
+- Support for single data records, multi-record files, and stdin streams.
+- CLI application with `-d/--data`, `-j/--json`, `-y/--yaml`, `-f/--file`, auto-detection, and customizable `-k/--key`.
+- Rust library API with extension traits for Lisp-RPC `Data`, `serde_json::Value`, and `serde_yaml::Value`.
+
+## Data Format Mapping
+
+| Lisp-RPC | JSON / YAML |
+|---|---|
+| `(book-info :title "1984" :id 1 :available t)` | `{"data_name": "book-info", "title": "1984", "id": 1, "available": true}` |
+| `'(:first "John" :last "Doe")` | `{"first": "John", "last": "Doe"}` |
+| `'("a" "b" "c")` | `["a", "b", "c"]` |
+| `"hello"` / `42` / `3.14` | `"hello"` / `42` / `3.14` |
+| `t` / `nil` / `false` | `true` / `null` / `false` |
+
+## CLI Usage
+
+### Installation / Build
+
+```bash
+cargo install lisp-rpc-json-convertor
+```
+
+### Options
+
+| Flag | Description |
+|---|---|
+| `-d, --data <DATA>` | Pass raw Lisp-RPC string directly (to JSON/YAML) |
+| `-j, --json <JSON>` | Pass raw JSON string directly (to Lisp-RPC) |
+| `-y, --yaml <YAML>` | Pass raw YAML string directly (to Lisp-RPC) |
+| `-f, --file <FILE>` | Read from a file (or `-` for stdin) |
+| `-o, --output <OUTPUT>` | Write output to a file (defaults to stdout) |
+| `-k, --key <KEY>` | Custom tag key name (defaults to `"data_name"`) |
+| `-p, --pretty` | Pretty-print JSON with indentation (when to JSON) |
+| `[INPUT]` | Positional raw string or file path (auto-detects mode) |
+
+**Default Output Behavior (when `-o` is omitted / printing to stdout):**
+- **JSON or YAML input** $\rightarrow$ outputs **Lisp-RPC S-expressions**.
+- **Lisp-RPC input** $\rightarrow$ outputs **JSON** (use `-p/--pretty` for indented JSON).
+- *(Note: YAML output from Lisp-RPC is generated when specifying a `.yaml` / `.yml` output file via `-o`).*
+
+### Examples
+
+#### Convert JSON to Lisp-RPC
+
+```shell
+lisp-rpc-json-convertor -j '{"data_name": "book", "title": "Dune", "year": 1965}'
+# (book :title "Dune" :year 1965)
+```
+
+#### Convert YAML to Lisp-RPC
+
+```shell
+lisp-rpc-json-convertor -y 'data_name: book
+title: Dune
+year: 1965'
+# (book :title "Dune" :year 1965)
+```
+
+#### Convert with custom tag key
+
+```shell
+lisp-rpc-json-convertor -j '{"_type": "user", "name": "Alice"}' -k "_type"
+# (user :name "Alice")
+
+lisp-rpc-json-convertor -y '_type: user
+name: Alice' -k "_type"
+# (user :name "Alice")
+```
+
+#### Convert JSON/YAML array of objects to Lisp-RPC list
+
+```shell
+lisp-rpc-json-convertor -j '[{"data_name": "book", "id": 1}, {"data_name": "book", "id": 2}]'
+# '((book :id 1) (book :id 2))
+
+lisp-rpc-json-convertor -y '- data_name: book
+  id: 1
+- data_name: book
+  id: 2'
+# '((book :id 1) (book :id 2))
+```
+
+#### Convert Lisp-RPC to JSON / YAML
+
+```shell
+# To JSON
+lisp-rpc-json-convertor -d '(book :title "Dune" :year 1965)' --pretty
+
+# To YAML (via output file extension)
+lisp-rpc-json-convertor -d '(book :title "Dune" :year 1965)' -o output.yaml
+```
+
+#### Convert files
+
+```shell
+# JSON file to Lisp-RPC
+lisp-rpc-json-convertor -f data.json -o data.lisp
+
+# YAML file to Lisp-RPC
+lisp-rpc-json-convertor -f data.yaml -o data.lisp
+
+# Lisp-RPC file to JSON
+lisp-rpc-json-convertor -f input.lisp -o output.json --pretty
+
+# Lisp-RPC file to YAML
+lisp-rpc-json-convertor -f input.lisp -o output.yaml
+```
+
+#### Pipe via stdin
+
+```shell
+echo '{"data_name": "get-book", "title": "Dune"}' | lisp-rpc-json-convertor
+# (get-book :title "Dune")
+
+echo '(get-book :title "Dune")' | lisp-rpc-json-convertor --pretty
+# { "data_name": "get-book", "title": "Dune" }
+```
+
+## Library Usage
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+lisp-rpc-json-convertor = "0"
+```
+
+### Modules Overview
+
+- `lisp_rpc_json_convertor::json`: JSON conversion utilities and extension traits (`JsonConvertor`, `JsonLispRpcExt`, `LispRpcJsonExt`).
+- `lisp_rpc_json_convertor::yaml`: YAML conversion utilities and extension traits (`YamlConvertor`, `YamlLispRpcExt`, `LispRpcYamlExt`).
+
+### JSON Conversion
+
+```rust
+use lisp_rpc_json_convertor::{from_json_str_to_string, JsonLispRpcExt, LispRpcJsonExt};
+use serde_json::json;
+
+fn main() -> anyhow::Result<()> {
+    // JSON -> Lisp-RPC string
+    let lisp_str = from_json_str_to_string(r#"{"data_name": "book", "title": "1984"}"#)?;
+    println!("{}", lisp_str); // (book :title "1984")
+
+    // Extension trait on serde_json::Value
+    let val = json!({ "data_name": "server", "host": "localhost" });
+    let data = val.to_lisp_rpc()?;
+    println!("{}", data.to_string()); // (server :host "localhost")
+
+    // Extension trait on Data -> JSON
+    let json_val = data.to_json()?;
+    println!("{}", json_val);
+    Ok(())
+}
+```
+
+### YAML Conversion
+
+```rust
+use lisp_rpc_json_convertor::{from_yaml_str_to_string, YamlLispRpcExt, LispRpcYamlExt, YamlConvertor};
+use serde_yaml::Value as YamlValue;
+
+fn main() -> anyhow::Result<()> {
+    // YAML -> Lisp-RPC string
+    let lisp_str = from_yaml_str_to_string("data_name: book\ntitle: 1984\n")?;
+    println!("{}", lisp_str); // (book :title "1984")
+
+    // Extension trait on serde_yaml::Value
+    let val: YamlValue = serde_yaml::from_str("data_name: server\nhost: localhost\n")?;
+    let data = val.to_lisp_rpc()?;
+    println!("{}", data.to_string()); // (server :host "localhost")
+
+    // Extension trait on Data -> YAML
+    let yaml_str = data.to_yaml()?;
+    println!("{:?}", yaml_str);
+    Ok(())
+}
+```
+
+### Custom Convertor Configuration
+
+```rust
+use lisp_rpc_json_convertor::{JsonConvertor, YamlConvertor};
+use serde_json::json;
+
+fn main() -> anyhow::Result<()> {
+    // JSON convertor with custom tag key
+    let json_conv = JsonConvertor::new().data_name_key("_type");
+    let json_val = json!({ "_type": "user-info", "name": "Alice" });
+    let data = json_conv.from_json(&json_val)?;
+    println!("{}", data.to_string()); // (user-info :name "Alice")
+
+    // YAML convertor with custom tag key
+    let yaml_conv = YamlConvertor::new().data_name_key("_type");
+    let yaml_str = yaml_conv.to_yaml_string(&data)?;
+    println!("{}", yaml_str);
+    Ok(())
+}
+```
+
+## Agent Skill
+
+A ready-to-use Agent Skill is provided for AI coding assistants (such as Antigravity) in [SKILL.md](SKILL.md).
+
+To equip your agent with this skill in a project:
+
+```bash
+mkdir -p /path/to/project/.agents/skills/lisp-rpc-json-convertor
+cp SKILL.md /path/to/project/.agents/skills/lisp-rpc-json-convertor/
+```
+
+Or install it globally for Antigravity on your machine:
+
+```bash
+mkdir -p ~/.gemini/antigravity-cli/skills/lisp-rpc-json-convertor
+cp SKILL.md ~/.gemini/antigravity-cli/skills/lisp-rpc-json-convertor/
+```
